@@ -1,0 +1,12 @@
+{
+    "port": 5630,
+    "negger_port": 5631,
+    "interval": 5.3,
+    "NB_List": [
+        "GORT",
+        "ANONYMOUS-10",
+        "MAC-00FAD1",
+        "MAC-4B923D"
+    ],
+    "debug": false
+}

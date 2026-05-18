@@ -1,0 +1,264 @@
+#for finding
+import subprocess
+import time
+
+#for the networking
+import socket
+import threading
+import readline
+import sys
+import json
+import os
+
+#Olly's:  ANONYMOUS-10
+#Jason's: MAC-00FAD1
+#Perry's: MAC-4B923D
+#Aaron's: GORT
+NB_List = ["GORT", "ANONYMOUS-10", "MAC-00FAD1", "MAC-4B923D"]
+Search_List = NB_List
+IPs_Found = []
+interval = 5.3
+
+
+port = 5630
+negger_port = 5631
+CONN_LIST = [] #not in use yet
+debug = True
+
+#thread for receiving data (call each time you get conn)
+def recv_thread(sock, nameO, prompt):
+    while True:
+        try:
+            data = sock.recv(1024).decode()
+            if not data:
+                break
+
+            current_input = readline.get_line_buffer()
+            sys.stdout.write("\r\033[K")
+            sys.stdout.write(f"{nameO}: {data}\n")
+            sys.stdout.write(prompt + current_input)
+            sys.stdout.flush()
+
+        except:
+            break
+
+#thread for sending data to each connected client
+def send_thread(prompt):
+    while True:
+        msg = input(prompt)
+        for sock in CONN_LIST:
+            try:
+                sock.send(msg.encode())
+            except:
+                pass
+
+
+#thread for initialising and maintaining server of host
+def yep_stein(prompt, name): 
+    global negger_port
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("0.0.0.0", port))
+    sock.listen(5)
+    print(f"-Server is listening on {port}-")
+    while True:
+        try:
+            gateway_conn, address = sock.accept()
+            
+            given_port = negger_port
+            negger_port += 1
+            
+            gateway_conn.send(f"SHIFT_PORT:{given_port}".encode())
+            gateway_conn.close()
+            
+            def dedicated_listener(target_port):
+                try:
+                    dedicated_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    dedicated_sock.bind(("0.0.0.0", target_port))
+                    dedicated_sock.listen(1)
+                    
+                    conn, addr = dedicated_sock.accept()
+                    
+                    conn.send(name.encode())
+                    nameO = conn.recv(1024).decode()
+                    
+                    CONN_LIST.append(conn)
+                    print(f"\n[+] Peer successfully routed and established on dedicated port {target_port}")
+                    
+                    threading.Thread(target=recv_thread, args=(conn, nameO, prompt), daemon=True).start()
+                    dedicated_sock.close() 
+                except:
+                    pass
+
+            threading.Thread(target=dedicated_listener, args=(given_port,), daemon=True).start()
+
+        except Exception as e:
+            pass
+
+#finds the ips of specified netbios names (this vers has olly, jason, perry and my NetBios names)
+def Find():
+    NB_List_Copy = list(Search_List) 
+    for NB in NB_List_Copy:
+        if debug:
+            print(f"Searching for {NB}")
+        try:
+            output = subprocess.run(
+                ["nmblookup", NB],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=5
+            )
+            if debug:
+                print(f"{NB} Found:")
+            i = output.stdout.split()[0]
+            if debug:
+                print(i)
+            if NB in Search_List:
+                Search_List.remove(NB)
+            
+        except subprocess.CalledProcessError as e:
+            if debug:
+                print()
+                print(f"Failed to find IP of {NB}: Most likely, target computer is 'asleep'")
+                print()
+            i = "C"
+        
+        if i == "C":
+            i = "C Unknown"
+        else:
+            i = i + " " + NB
+            
+        IPs_Found.append(i)
+    
+    
+#starts the mesh topo connecteriggering :( nigger rigger (this is so nigger rigged)
+def Connect(ip_element, name, prompt):
+    ip_address = ip_element.split()[0]
+    nb_name = ip_element.split()[1]
+    
+    if ip_address == "C": 
+        return False
+        
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(4)
+        sock.connect((ip_address, port))
+        
+        server_response = sock.recv(1024).decode()
+        sock.close() 
+        
+        if server_response.startswith("SHIFT_PORT:"):
+            routed_port = int(server_response.split(":")[1])
+            
+            time.sleep(0.5) 
+            
+            dedicated_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            dedicated_sock.connect((ip_address, routed_port))
+            
+            nameO = dedicated_sock.recv(1024).decode()
+            dedicated_sock.send(name.encode())
+            
+            CONN_LIST.append(dedicated_sock)
+            print(f"[+] Connected to {nb_name} on shifted port {routed_port}!")
+            
+            threading.Thread(target=recv_thread, args=(dedicated_sock, nameO, prompt), daemon=True).start()
+            
+    except Exception as e:
+        print(f"[-] Could not connect or route to {nb_name} at {ip_address}")
+
+
+
+def main():
+    global port, negger_port, interval, NB_List, Search_List, debug
+    
+    if os.path.exists("config.json"):
+        try:
+            with open("config.json", "r") as f:
+                saved_data = json.load(f)
+                port = saved_data.get("port", port)
+                negger_port = saved_data.get("negger_port", negger_port)
+                interval = saved_data.get("interval", interval)
+                NB_List = saved_data.get("NB_List", NB_List)
+                Search_List = NB_List
+                debug = saved_data.get("debug", debug)
+        except:
+            pass
+
+    print("Type start to 'start' or 'help' for commands")
+
+    while True:
+        user_cmd = input("setup> ").strip()
+        
+        if user_cmd == "start":
+            break
+
+        elif user_cmd == 'help':
+            print("Commands:")
+            print("  config port [value]")
+            print("  config Nport [value]")
+            print("  config interval [value]")
+            print("  config debug [true/false]")
+            print("  start\n")
+            
+        elif user_cmd.startswith("config port "):
+            try:
+                port = int(user_cmd.split(" ")[2])
+                print(f"[Config Updated] port set to: {port}")
+            except:
+                print("Invalid port number format.")
+                
+        elif user_cmd.startswith("config Nport "):
+            try:
+                negger_port = int(user_cmd.split(" ")[2])
+                print(f"[Config Updated] negger_port set to: {negger_port}")
+            except:
+                print("Invalid Nport number format.")
+                
+        elif user_cmd.startswith("config interval "):
+            try:
+                interval = float(user_cmd.split(" ")[2])
+                print(f"[Config Updated] interval set to: {interval}")
+            except:
+                print("Invalid interval number format.")
+
+        elif user_cmd.startswith("config debug "):
+            val = user_cmd.split(" ")[2].lower()
+            if val == "true":
+                debug = True
+                print("[Config Updated] debug mode enabled.")
+            elif val == "false":
+                debug = False
+                print("[Config Updated] debug mode disabled.")
+            else:
+                print("Invalid debug value. Choose 'true' or 'false'.")
+        else:
+            print("Unknown command. Type config parameter or 'start'.")
+
+    config_payload = {
+        "port": port,
+        "negger_port": negger_port,
+        "interval": interval,
+        "NB_List": NB_List,
+        "debug": debug
+    }
+    with open("config.json", "w") as f:
+        json.dump(config_payload, f, indent=4)
+
+    name = input("display as: ")
+    prompt = f"{name}: "
+    
+    threading.Thread(target=yep_stein, args=(prompt, name), daemon=True).start()
+
+    for i in range(3):
+        Find()
+        time.sleep(interval)
+
+    print(IPs_Found)
+    for ip in IPs_Found:
+        Connect(ip, name, prompt)
+    
+    send_thread(prompt)
+    
+
+if __name__ == "__main__":
+    main()
