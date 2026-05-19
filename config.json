@@ -1,6 +1,6 @@
 {
     "port": 5630,
-    "negger_port": 5631,
+    "incremented_port": 5631,
     "interval": 5.3,
     "NB_List": [
         "GORT",

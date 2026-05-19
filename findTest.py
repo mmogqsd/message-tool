@@ -21,7 +21,7 @@ interval = 5.3
 
 
 port = 5630
-negger_port = 5631
+incremented_port = 5631
 CONN_LIST = []
 debug = True
 
@@ -39,6 +39,8 @@ def receive(sock, nameO, prompt):
             sys.stdout.write(prompt + current_input)
             sys.stdout.flush()
 
+            readline.redisplay()
+
         except:
             break
 
@@ -46,6 +48,8 @@ def receive(sock, nameO, prompt):
 def send(prompt):
     while True:
         msg = input(prompt)
+        if msg == "debugInfo":
+            print(CONN_LIST) #EXTRA DEBUG
         for sock in CONN_LIST:
             try:
                 sock.send(msg.encode())
@@ -54,8 +58,8 @@ def send(prompt):
 
 
 #thread for initialising and maintaining server of host
-def yep_stein(prompt, name): 
-    global negger_port
+def server(prompt, name): 
+    global incremented_port
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind(("0.0.0.0", port))
     sock.listen(5)
@@ -63,9 +67,25 @@ def yep_stein(prompt, name):
     while True:
         try:
             gateway_conn, address = sock.accept()
+
+
+            already_connected = False
+            for active_sock in CONN_LIST:
+                try:
+                    if active_sock.getpeername()[0] == address[0]:
+                        already_connected = True
+                        break
+                except:
+                    pass
+
+            if already_connected:
+                gateway_conn.send("ALREADY_CONNECTED".encode())
+                gateway_conn.close()
+                continue
+
             
-            given_port = negger_port
-            negger_port += 1
+            given_port = incremented_port
+            incremented_port += 1
             
             gateway_conn.send(f"SHIFT_PORT:{given_port}".encode())
             gateway_conn.close()
@@ -131,13 +151,22 @@ def find():
         IPs_Found.append(i)
     
     
-#starts the mesh topo connecteriggering :( nigger rigger (this is so nigger rigged)
+#starts the mesh topo connecting
 def connect(ip_element, name, prompt):
     ip_address = ip_element.split()[0]
     nb_name = ip_element.split()[1]
     
     if ip_address == "C": 
         return False
+
+    for active_sock in CONN_LIST:
+        try:
+            if active_sock.getpeername()[0] == ip_address:
+                if debug:
+                    print(f"[=] Not allowing connection to {nb_name} because there is already an active connection")
+                return False
+        except:
+            pass
         
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -145,6 +174,8 @@ def connect(ip_element, name, prompt):
         sock.connect((ip_address, port))
         
         server_response = sock.recv(1024).decode()
+        if server_response == "ALREADY_CONNECTED":
+            return False
         sock.close() 
         
         if server_response.startswith("SHIFT_PORT:"):
@@ -169,14 +200,14 @@ def connect(ip_element, name, prompt):
 
 
 def main():
-    global port, negger_port, interval, NB_List, Search_List, debug
+    global port, incremented_port, interval, NB_List, Search_List, debug
     
     if os.path.exists("config.json"):
         try:
             with open("config.json", "r") as f:
                 saved_data = json.load(f)
                 port = saved_data.get("port", port)
-                negger_port = saved_data.get("negger_port", negger_port)
+                incremented_port = saved_data.get("incremented_port", incremented_port)
                 interval = saved_data.get("interval", interval)
                 NB_List = saved_data.get("NB_List", NB_List)
                 Search_List = NB_List
@@ -209,8 +240,8 @@ def main():
                 
         elif user_cmd.startswith("config Nport "):
             try:
-                negger_port = int(user_cmd.split(" ")[2])
-                print(f"[Config Updated] negger_port set to: {negger_port}")
+                incremented_port = int(user_cmd.split(" ")[2])
+                print(f"[Config Updated] incremented_port set to: {incremented_port}")
             except:
                 print("Invalid Nport number format.")
                 
@@ -236,7 +267,7 @@ def main():
 
     config_payload = {
         "port": port,
-        "negger_port": negger_port,
+        "incremented_port": incremented_port,
         "interval": interval,
         "NB_List": NB_List,
         "debug": debug
@@ -247,7 +278,7 @@ def main():
     name = input("display as: ")
     prompt = f"{name}: "
     
-    threading.Thread(target=yep_stein, args=(prompt, name), daemon=True).start()
+    threading.Thread(target=server, args=(prompt, name), daemon=True).start()
 
     for i in range(3):
         find()
