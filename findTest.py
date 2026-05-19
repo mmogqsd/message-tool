@@ -11,10 +11,10 @@ import json
 import os
 
 #Olly's:  ANONYMOUS-10
-#Jason's: MAC-00FAD1
+#Jason's: YEGJK-LAPTOP
 #Perry's: MAC-4B923D
 #Aaron's: GORT
-NB_List = ["GORT", "ANONYMOUS-10", "MAC-00FAD1", "MAC-4B923D"]
+NB_List = ["GORT", "ANONYMOUS-10", "YEGJK-LAPTOP", "MAC-4B923D"]
 Search_List = NB_List
 IPs_Found = []
 interval = 5.3
@@ -22,11 +22,11 @@ interval = 5.3
 
 port = 5630
 negger_port = 5631
-CONN_LIST = [] #not in use yet
+CONN_LIST = []
 debug = True
 
-#thread for receiving data (call each time you get conn)
-def recv_thread(sock, nameO, prompt):
+#thread for receiving data
+def receive(sock, nameO, prompt):
     while True:
         try:
             data = sock.recv(1024).decode()
@@ -43,7 +43,7 @@ def recv_thread(sock, nameO, prompt):
             break
 
 #thread for sending data to each connected client
-def send_thread(prompt):
+def send(prompt):
     while True:
         msg = input(prompt)
         for sock in CONN_LIST:
@@ -84,7 +84,7 @@ def yep_stein(prompt, name):
                     CONN_LIST.append(conn)
                     print(f"\n[+] Peer successfully routed and established on dedicated port {target_port}")
                     
-                    threading.Thread(target=recv_thread, args=(conn, nameO, prompt), daemon=True).start()
+                    threading.Thread(target=receive, args=(conn, nameO, prompt), daemon=True).start()
                     dedicated_sock.close() 
                 except:
                     pass
@@ -94,8 +94,8 @@ def yep_stein(prompt, name):
         except Exception as e:
             pass
 
-#finds the ips of specified netbios names (this vers has olly, jason, perry and my NetBios names)
-def Find():
+#finds the ips of specified netbios names (this vers has olly, jason, perry and my NetBios name)
+def find():
     NB_List_Copy = list(Search_List) 
     for NB in NB_List_Copy:
         if debug:
@@ -132,7 +132,7 @@ def Find():
     
     
 #starts the mesh topo connecteriggering :( nigger rigger (this is so nigger rigged)
-def Connect(ip_element, name, prompt):
+def connect(ip_element, name, prompt):
     ip_address = ip_element.split()[0]
     nb_name = ip_element.split()[1]
     
@@ -159,9 +159,9 @@ def Connect(ip_element, name, prompt):
             dedicated_sock.send(name.encode())
             
             CONN_LIST.append(dedicated_sock)
-            print(f"[+] Connected to {nb_name} on shifted port {routed_port}!")
+            print(f"[+] connected to {nb_name} on shifted port {routed_port}!")
             
-            threading.Thread(target=recv_thread, args=(dedicated_sock, nameO, prompt), daemon=True).start()
+            threading.Thread(target=receive, args=(dedicated_sock, nameO, prompt), daemon=True).start()
             
     except Exception as e:
         print(f"[-] Could not connect or route to {nb_name} at {ip_address}")
@@ -250,14 +250,14 @@ def main():
     threading.Thread(target=yep_stein, args=(prompt, name), daemon=True).start()
 
     for i in range(3):
-        Find()
+        find()
         time.sleep(interval)
 
     print(IPs_Found)
     for ip in IPs_Found:
-        Connect(ip, name, prompt)
+        connect(ip, name, prompt)
     
-    send_thread(prompt)
+    send(prompt)
     
 
 if __name__ == "__main__":
