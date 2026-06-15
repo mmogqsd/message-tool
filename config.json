@@ -2,13 +2,5 @@
     "port": 5630,
     "incremented_port": 5631,
     "interval": 3,
-    "NB_List": [
-        "GORT",
-        "ANONYMOUS-10",
-        "YEGJK-LAPTOP",
-        "MAC-4B923D",
-        "BRUH",
-        "MAC-42D3AC"
-    ],
     "debug": true
 }
