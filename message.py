@@ -42,12 +42,12 @@ class packet:
         self.name = name
         self.type = type
 
-
 udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 udp_sock.bind(('', upd_port))
 mreq = struct.pack("4si", socket.inet_aton(mcast_group), socket.INADDR_ANY)
 udp_sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+
 
 
 #gets your ip to prevent self connections
@@ -63,16 +63,15 @@ self_ip = get_ip()
 def stop_server():
     global server_sock
     if server_sock:
-        print(server_sock)
         server_sock.close()
-        print(server_sock)
 
 #udp listening on multicast group
 def listen_udp(prompt, name):
     while True:
         data, address = udp_sock.recvfrom(1024)
         address = address[0]
-        if address and address not in IPs_Found and address[0] != self_ip:
+        if address and address not in IPs_Found and address != self_ip:
+            IPs_Found.append(address)
             data = pickle.loads(data)
             #print(f"\n[|] client data receievd from {address}: {data}")
             threading.Thread(target=connect, args=(address, data, prompt), daemon=True).start()
@@ -81,10 +80,10 @@ def listen_udp(prompt, name):
 def send_udp(prompt, name, packet):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
-
     message = pickle.dumps(packet)
 
     #print(f"\nSending packet to group {mcast_group}")
+
     sock.sendto(message, (mcast_group, upd_port))
 
 
@@ -93,7 +92,6 @@ def receive(sock, nameO, prompt):
     while True:
         try:
             data = sock.recv(1024).decode()
-            print("data rec")
             if not data:
                 break
             if data == disconnect_code:
@@ -182,7 +180,6 @@ def connect(address, data, prompt):
         except:
             pass
 
-    #sys.stdout.write(f"\nconnecting to: {address}\n")
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(4)
@@ -214,6 +211,7 @@ def connect(address, data, prompt):
             threading.Thread(target=receive, args=(dedicated_sock, nameO, prompt), daemon=True).start()
             
     except Exception as e:
+        print(e)
         print(f"[-] Could not connect or route to {name} at {address}")
         sys.stdout.flush()
         readline.redisplay()
@@ -276,15 +274,10 @@ def server(prompt, name):
                     
                     CONN_LIST.append(conn)
                     print(f"\n[+] Peer successfully routed and established on dedicated port {target_port}")
-                    print("receieve called from server")
                     threading.Thread(target=receive, args=(conn, nameO, prompt), daemon=True).start()
                     dedicated_sock.close() 
                 except:
-                    try:
-                        dedicated_sock.close()
-                    except:
-                        print("damn")
-                    pass
+                    dedicated_sock.close()
 
             threading.Thread(target=dedicated_listener, args=(given_port,), daemon=True).start()
 
