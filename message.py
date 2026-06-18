@@ -59,7 +59,7 @@ def get_ip():
     
 self_ip = get_ip()
 
-#closes
+#closes server
 def stop_server():
     global server_sock
     if server_sock:
