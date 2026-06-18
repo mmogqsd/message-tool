@@ -74,7 +74,7 @@ def listen_udp(prompt, name):
             IPs_Found.append(address)
             data = pickle.loads(data)
             #print(f"\n[|] client data receievd from {address}: {data}")
-            threading.Thread(target=connect, args=(address, data, prompt), daemon=True).start()
+            threading.Thread(target=connect, args=(address, data, prompt, name), daemon=True).start()
 
 #sends packet over udp multicast group
 def send_udp(prompt, name, packet):
@@ -163,7 +163,7 @@ def send(prompt):
     
 
 #starts the mesh topo connecting
-def connect(address, data, prompt):
+def connect(address, data, prompt, local_name):
     
     
     name = data.name
@@ -199,12 +199,12 @@ def connect(address, data, prompt):
             dedicated_sock.connect((address, routed_port))
             
             nameO = dedicated_sock.recv(1024).decode()
-            dedicated_sock.send(name.encode())
+            dedicated_sock.send(local_name.encode())
             
             CONN_LIST.append(dedicated_sock)
             sys.stdout.write("\r\033[K")
             sys.stdout.write(f"[+] connected to {name} on shifted port {routed_port}!")
-
+            sys.stdout.write(prompt)
             sys.stdout.flush()
             readline.redisplay()
 
@@ -226,7 +226,9 @@ def server(prompt, name):
     server_sock.listen(5)
     sys.stdout.write("\r\033[K")
     sys.stdout.write(f"-Server is listening on {port}-\n")
-    sys.stdout.write("\r\033[K")
+    #sys.stdout.write("\r\033[K")
+    sys.stdout.write(prompt)
+    
     sys.stdout.flush()
     readline.redisplay()
 
