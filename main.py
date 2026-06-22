@@ -1,5 +1,6 @@
 #script uses udp broadcasts and a dedicated host port to connect clients with a mesh topology
 
+#anything that needs rec
 import struct
 import pickle
 
@@ -27,7 +28,7 @@ incremented_port = 5631
 CONN_LIST = []
 debug = True
 
-
+encryption_key = ""
 
 mcast_ip = "224.0.0.251"
 mcast_group = '224.1.1.1'
@@ -37,10 +38,11 @@ ttl = 10
 data_list = []
 
 class packet:
-    def __init__(self, conn_port: str, name: str, type: str):
+    def __init__(self, conn_port: str, name: str, type: str, key: str):
         self.port = conn_port
         self.name = name
         self.type = type
+        self.key = key
 
 udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -48,6 +50,10 @@ udp_sock.bind(('', upd_port))
 mreq = struct.pack("4si", socket.inet_aton(mcast_group), socket.INADDR_ANY)
 udp_sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
+
+#encryption
+def encrypt(data, key) -> str:
+    return ''.join(chr(ord(c) ^ ord(key[i % len(key)])) for i, c in enumerate(data))
 
 
 #gets your ip to prevent self connections
@@ -67,22 +73,35 @@ def stop_server():
 
 #udp listening on multicast group
 def listen_udp(prompt, name):
+    global encryption_key
     while True:
         data, address = udp_sock.recvfrom(1024)
         address = address[0]
         if address and address not in IPs_Found and address != self_ip:
             IPs_Found.append(address)
             data = pickle.loads(data)
-            #print(f"\n[|] client data receievd from {address}: {data}")
-            threading.Thread(target=connect, args=(address, data, prompt, name), daemon=True).start()
+            print("received UDP packet")
+            
+            if data.key == encryption_key: 
+                print("received UDP packet matches key")
+                data.name = encrypt(data.name, data.key)
+                data.port = encrypt(data.port, data.key)
+                data.type = encrypt(data.type, data.key)
+
+                #print(f"\n[|] client data receievd from {address}: {data}")
+                threading.Thread(target=connect, args=(address, data, prompt, name), daemon=True).start()
 
 #sends packet over udp multicast group
 def send_udp(prompt, name, packet):
+    packet.name = encrypt(packet.name, packet.key)
+    packet.port = encrypt(packet.port, packet.key)
+    packet.type = encrypt(packet.type, packet.key)
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
     message = pickle.dumps(packet)
 
-    #print(f"\nSending packet to group {mcast_group}")
+
 
     sock.sendto(message, (mcast_group, upd_port))
 
@@ -94,6 +113,9 @@ def receive(sock, nameO, prompt):
             data = sock.recv(1024).decode()
             if not data:
                 break
+
+            data = encrypt(data, encryption_key)
+
             if data == disconnect_code:
                 current_input = readline.get_line_buffer()
                 sys.stdout.write("\r\033K")
@@ -128,7 +150,7 @@ def receive(sock, nameO, prompt):
         except:
             break
 
-    
+#closes all active connections
 def close_sockets():
     global server_sock
     udp_sock.close()
@@ -145,13 +167,14 @@ def send(prompt):
     while True:
         try:
             msg = str(input(prompt))
+            msg =  encrypt(msg, encryption_key)
         except KeyboardInterrupt:
             for sock in CONN_LIST:
                 try:
                     sock.send(disconnect_code.encode())
                 except:
                     pass
-                close_sockets()
+            close_sockets()
             sys.exit()
 
 
@@ -164,8 +187,7 @@ def send(prompt):
 
 #starts the mesh topo connecting
 def connect(address, data, prompt, local_name):
-    
-    
+
     name = data.name
     port = data.port
     for active_sock in CONN_LIST:
@@ -186,6 +208,8 @@ def connect(address, data, prompt, local_name):
         sock.connect((address, port))
         
         server_response = sock.recv(1024).decode()
+        server_response = encrypt(server_response, encryption_key)
+
         if server_response == "ALREADY_CONNECTED":
             return False
         sock.close() 
@@ -232,12 +256,16 @@ def server(prompt, name):
     sys.stdout.flush()
     readline.redisplay()
 
+    active_conn_code = (f"ALREADY_CONNECTED", encryption_key)
+    code = (f"SHIFT_PORT:{given_port}", encryption_key)
+
     while True:
         try:
             gateway_conn, address = server_sock.accept()
 
             if address[0] == self_ip:
-                gateway_conn.send("ALREADY_CONNECTED".encode())
+                
+                gateway_conn.send(active_conn_code.encode())
                 gateway_conn.close()
                 return
 
@@ -252,7 +280,7 @@ def server(prompt, name):
                     pass
 
             if already_connected:
-                gateway_conn.send("ALREADY_CONNECTED".encode())
+                gateway_conn.send(active_conn_code.encode())
                 gateway_conn.close()
                 continue
 
@@ -260,7 +288,8 @@ def server(prompt, name):
             given_port = incremented_port
             incremented_port += 1
             
-            gateway_conn.send(f"SHIFT_PORT:{given_port}".encode())
+            
+            gateway_conn.send(code.encode())
             gateway_conn.close()
             
             def dedicated_listener(target_port):
@@ -288,7 +317,7 @@ def server(prompt, name):
 
 
 def main():
-    global port, incremented_port, interval, debug
+    global port, incremented_port, interval, debug, encryption_key
     
     if os.path.exists("config.json"):
         try:
@@ -307,7 +336,7 @@ def main():
         try:
             user_cmd = input("setup> ").strip()
         except KeyboardInterrupt:
-            close_sockets()
+            close_sockets
             sys.exit()
         
         if user_cmd == "start":
@@ -364,11 +393,15 @@ def main():
     with open("config.json", "w") as f:
         json.dump(config_payload, f, indent=4)
 
-    name = input("display as: ")
+    name = input("display as: ") 
+    encryption_key = input("encryption key / room: ")
+
     prompt = f"> "
+
+   
     
     
-    upd_packet = packet(port, name, discovery_code)
+    upd_packet = packet(port, name, discovery_code, encryption_key)
     threading.Thread(target=listen_udp, args=(prompt, name), daemon=True).start()
     threading.Thread(target=server, args=(prompt, name), daemon=True).start()
     threading.Thread(target=send_udp, args=(prompt, name, upd_packet), daemon=True).start()
