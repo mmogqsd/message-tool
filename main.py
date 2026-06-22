@@ -85,7 +85,7 @@ def listen_udp(prompt, name):
             if data.key == encryption_key: 
                 print("received UDP packet matches key")
                 data.name = encrypt(data.name, data.key)
-                data.port = encrypt(data.port, data.key)
+                data.port = encrypt(str(data.port), data.key)
                 data.type = encrypt(data.type, data.key)
 
                 #print(f"\n[|] client data receievd from {address}: {data}")
@@ -94,7 +94,7 @@ def listen_udp(prompt, name):
 #sends packet over udp multicast group
 def send_udp(prompt, name, packet):
     packet.name = encrypt(packet.name, packet.key)
-    packet.port = encrypt(packet.port, packet.key)
+    packet.port = encrypt(str(packet.port), packet.key)
     packet.type = encrypt(packet.type, packet.key)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -256,8 +256,8 @@ def server(prompt, name):
     sys.stdout.flush()
     readline.redisplay()
 
-    active_conn_code = (f"ALREADY_CONNECTED", encryption_key)
-    code = (f"SHIFT_PORT:{given_port}", encryption_key)
+    active_conn_code = encrypt(f"ALREADY_CONNECTED", encryption_key)
+    
 
     while True:
         try:
@@ -288,6 +288,9 @@ def server(prompt, name):
             given_port = incremented_port
             incremented_port += 1
             
+            code = f"SHIFT_PORT:{given_port}"
+            code = str(code)
+            code = encrypt(code, encryption_key)
             
             gateway_conn.send(code.encode())
             gateway_conn.close()
@@ -394,7 +397,7 @@ def main():
         json.dump(config_payload, f, indent=4)
 
     name = input("display as: ") 
-    encryption_key = input("encryption key / room: ")
+    encryption_key = str(input("encryption key / room: "))
 
     prompt = f"> "
 
