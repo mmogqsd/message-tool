@@ -1,16 +1,13 @@
 #script uses udp broadcasts and a dedicated host port to connect clients with a mesh topology
 
-#anything that needs rec
+#for rec
 import struct
 import pickle
-
-#for finding
-import subprocess
-import time
 
 #for the networking
 import socket
 import threading
+import time
 import readline
 import sys
 import json
@@ -35,7 +32,12 @@ mcast_group = '224.1.1.1'
 upd_port = 56302
 ttl = 10
 
-key_file = "last_keys.txt"
+project_dir = os.path.dirname(os.path.abspath(__file__))
+
+config_path = os.path.join(project_dir, 'config.json')
+key_file = os.path.join(project_dir, 'last_keys.txt')
+
+
 
 data_list = []
 
@@ -45,6 +47,9 @@ class packet:
         self.name = name
         self.type = type
         self.key = key
+
+os.system("ls")
+os.system("pwd")
 
 udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -396,9 +401,9 @@ def server(prompt, name):
 def main():
     global port, incremented_port, interval, debug, encryption_key
     
-    if os.path.exists("config.json"):
+    if os.path.exists(config_path):
         try:
-            with open("config.json", "r") as f:
+            with open(config_path, "r") as f:
                 saved_data = json.load(f)
                 port = saved_data.get("port", port)
                 incremented_port = saved_data.get("incremented_port", incremented_port)
@@ -467,7 +472,7 @@ def main():
         "interval": interval,
         "debug": debug
     }
-    with open("config.json", "w") as f:
+    with open(config_path, "w") as f:
         json.dump(config_payload, f, indent=4)
 
     name = input("display as: ") 
