@@ -1,4 +1,11 @@
-messaging tool which uses either netbios names or udp multicast to connect clients across network in mesh topology
+this tool should fully work now
 
-for the udp multicast functionality use "git clone -b udp-version https://github.com/mmogqsd/message-test"
-udp version is unreliable as of now
+
+features:
+-connects all clients on network with a mesh topology using a udp multicast
+-has encryption and multiple chatrooms (defined by the given key)
+
+planning to add (later):
+-file transfer
+-other script integration
+-simple rce if authorised
