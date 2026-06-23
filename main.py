@@ -48,8 +48,6 @@ class packet:
         self.type = type
         self.key = key
 
-os.system("ls")
-os.system("pwd")
 
 udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -106,7 +104,12 @@ def get_encryption_key():
 
             check = None
             while True:
-                choice = input("which key would you like to use? ")
+                try:
+                    choice = input("which key would you like to use? ")
+                except KeyboardInterrupt:
+                    close_sockets()
+                    sys.exit
+
                 if choice.isdigit and int(choice) > 0:
                     with open(key_file, 'r') as f:
                         for i, _ in enumerate(f, 1):
@@ -123,8 +126,19 @@ def get_encryption_key():
                     print("choice does not correspond to a key number OR is outside the range ")
                             
         elif key_usage == "n":
-            encryption_key = str(input("encryption key / room: ")).strip()
-            
+
+            encryption_key = None
+            while True:
+                try:
+                    encryption_key = str(input("encryption key / room: ")).strip()
+                except KeyboardInterrupt:
+                    close_sockets()
+                    sys.exit
+
+                if encryption_key != "":
+                    break
+                print("invalid response, try again")
+
             existing_keys = []
             if os.path.exists(key_file):
                 with open(key_file, "r") as file:
