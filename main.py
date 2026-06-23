@@ -35,6 +35,8 @@ mcast_group = '224.1.1.1'
 upd_port = 56302
 ttl = 10
 
+key_file = "last_keys.txt"
+
 data_list = []
 
 class packet:
@@ -70,6 +72,78 @@ def stop_server():
     global server_sock
     if server_sock:
         server_sock.close()
+
+#ngets encryption key stuff
+def get_encryption_key():
+    while True:
+        lines = []
+        has_prev_keys = True
+        if os.path.getsize(key_file) == 0:
+            has_prev_keys = False
+        try:
+            key_usage = input("use a previous room key? y/n: ")
+        except KeyboardInterrupt:
+            close_sockets()
+            sys.exit
+
+        if key_usage == "y" and has_prev_keys == True:
+        
+            with open(key_file, "r") as file:
+                for index, line in enumerate(file):
+                    if index >= 5:
+                        break
+
+                    lines.append(line.strip())
+            u = 1
+            for line in lines:
+                print(f"{u} – {line}")
+                u += 1
+
+            check = None
+            while True:
+                choice = input("which key would you like to use? ")
+                if choice.isdigit and int(choice) > 0:
+                    with open(key_file, 'r') as f:
+                        for i, _ in enumerate(f, 1):
+                            if i == int(choice):
+                                encryption_key = _
+                                check = True
+
+                    if check == True:
+                        return encryption_key
+                    else:
+                        print("choice does not correspond to a key number OR is outside the range")
+                
+                else:
+                    print("choice does not correspond to a key number OR is outside the range ")
+                            
+        elif key_usage == "n":
+            encryption_key = str(input("encryption key / room: ")).strip()
+            
+            existing_keys = []
+            if os.path.exists(key_file):
+                with open(key_file, "r") as file:
+                    existing_keys = [line.strip() for line in file if line.strip()]
+
+            if encryption_key in existing_keys:
+                existing_keys.remove(encryption_key)
+
+            existing_keys.insert(0, encryption_key)
+
+            existing_keys = existing_keys[:5]
+
+            with open(key_file, "w") as file:
+                for key in existing_keys:
+                    file.write(f"{key}\n")
+
+            return encryption_key
+
+
+
+        else:
+            print("try again, invalid response")
+        
+
 
 #udp listening on multicast group
 def listen_udp(prompt, name):
@@ -397,13 +471,11 @@ def main():
         json.dump(config_payload, f, indent=4)
 
     name = input("display as: ") 
-    encryption_key = str(input("encryption key / room: "))
+
+    encryption_key = get_encryption_key()
 
     prompt = f"> "
 
-   
-    
-    
     upd_packet = packet(port, name, discovery_code, encryption_key)
     threading.Thread(target=listen_udp, args=(prompt, name), daemon=True).start()
     threading.Thread(target=server, args=(prompt, name), daemon=True).start()
