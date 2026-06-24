@@ -174,7 +174,7 @@ def listen_udp(prompt, name):
             IPs_Found.append(address)
             data = pickle.loads(data)
             print("received UDP packet")
-            
+            print(data.key, encryption_key)
             if data.key == encryption_key: 
                 print("received UDP packet matches key")
                 data.name = encrypt(data.name, data.key)
@@ -262,6 +262,7 @@ def send(prompt):
             msg = str(input(prompt))
             msg =  encrypt(msg, encryption_key)
         except KeyboardInterrupt:
+            disconnect_code = encrypt(disconnect_code, encryption_key)
             for sock in CONN_LIST:
                 try:
                     sock.send(disconnect_code.encode())
@@ -282,7 +283,7 @@ def send(prompt):
 def connect(address, data, prompt, local_name):
 
     name = data.name
-    port = data.port
+    port = int(data.port)
     for active_sock in CONN_LIST:
         try:
             if active_sock.getpeername()[0] == address:
