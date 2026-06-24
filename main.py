@@ -73,7 +73,7 @@ self_ip = get_ip()
 #closes server
 def stop_server():
     global server_sock
-    if server_sock:
+    if server_sock and server_sock != None:
         server_sock.close()
 
 #ngets encryption key stuff
@@ -247,7 +247,7 @@ def receive(sock, nameO, prompt):
 def close_sockets():
     global server_sock
     udp_sock.close()
-    server_sock.close()
+    stop_server()
     for sock in CONN_LIST:
         try:
             CONN_LIST.remove(sock)
