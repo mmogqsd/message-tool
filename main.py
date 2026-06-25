@@ -168,7 +168,11 @@ def get_encryption_key():
 def listen_udp(prompt, name):
     global encryption_key
     while True:
-        data, address = udp_sock.recvfrom(1024)
+        try:
+            data, address = udp_sock.recvfrom(1024)
+        except:
+            print("Unexpected Error")
+            break
         address = address[0]
         if address and address not in IPs_Found and address != self_ip:
             IPs_Found.append(address)
@@ -181,7 +185,7 @@ def listen_udp(prompt, name):
                 data.port = encrypt(str(data.port), data.key)
                 data.type = encrypt(data.type, data.key)
 
-                #print(f"\n[|] client data receievd from {address}: {data}")
+                print(f"\n[|] client data receievd from {address}: {data}")
                 threading.Thread(target=connect, args=(address, data, prompt, name), daemon=True).start()
 
 #sends packet over udp multicast group
@@ -216,12 +220,14 @@ def receive(sock, nameO, prompt):
 
                 if "\n" in current_input:
                     current_input = ""
+
                 sys.stdout.write(f"{nameO}: {data}\n")
                 sys.stdout.write(prompt + current_input)
                 sys.stdout.flush()
 
                 readline.redisplay()
                 
+                IPs_Found.remove(sock.getsockname()[0])
                 CONN_LIST.remove(sock)
                 sock.close()
                 
@@ -262,10 +268,10 @@ def send(prompt):
             msg = str(input(prompt))
             msg =  encrypt(msg, encryption_key)
         except KeyboardInterrupt:
-            disconnect_code = encrypt(disconnect_code, encryption_key)
             for sock in CONN_LIST:
                 try:
-                    sock.send(disconnect_code.encode())
+                    print(disconnect_code)
+                    sock.send(encrypt(disconnect_code, encryption_key).encode())
                 except:
                     pass
             close_sockets()
@@ -368,6 +374,14 @@ def server(prompt, name):
             for active_sock in CONN_LIST:
                 try:
                     if active_sock.getpeername()[0] == address[0]:
+                        already_connected = True
+                        break
+                except:
+                    pass
+
+            for ip in IPs_Found:
+                try:
+                    if ip == address[0]:
                         already_connected = True
                         break
                 except:
