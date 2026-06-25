@@ -92,15 +92,16 @@ def get_encryption_key():
         if key_usage == "y" and has_prev_keys == True:
         
             with open(key_file, "r") as file:
-                for index, line in enumerate(file):
-                    if index >= 5:
+                for line_index, line in enumerate(file):
+                    if line_index >= 5:
                         break
 
                     lines.append(line.strip())
-            u = 1
+
+            index = 1
             for line in lines:
-                print(f"{u} – {line}")
-                u += 1
+                print(f"{index} – {line}")
+                index += 1
 
             check = None
             while True:
