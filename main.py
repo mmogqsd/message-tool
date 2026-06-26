@@ -79,6 +79,20 @@ def stop_server():
 #ngets encryption key stuff
 def get_encryption_key():
     while True:
+        try:
+            chatroom = input("enter a chatroom? y/n: ")
+        except KeyboardInterrupt:
+            close_sockets()
+            sys.exit
+
+        if chatroom == 'y':
+            pass
+        elif chatroom == 'n':
+            return "EpsteinIsMyLordAndSaviour" #default encryption key
+        else: 
+            print("invalid response, try again") 
+            continue
+
         lines = []
         has_prev_keys = True
         if os.path.getsize(key_file) == 0:
@@ -107,6 +121,7 @@ def get_encryption_key():
             while True:
                 try:
                     choice = input("which key would you like to use? ")
+
                 except KeyboardInterrupt:
                     close_sockets()
                     sys.exit
@@ -172,10 +187,10 @@ def listen_udp(prompt, name):
         try:
             data, address = udp_sock.recvfrom(1024)
         except:
-            print("Unexpected Error")
             break
+
         address = address[0]
-        if address and address not in IPs_Found and address != self_ip:
+        if address and address not in IPs_Found: #and address != self_ip:
             IPs_Found.append(address)
             data = pickle.loads(data)
             print("received UDP packet")
@@ -186,7 +201,8 @@ def listen_udp(prompt, name):
                 data.port = encrypt(str(data.port), data.key)
                 data.type = encrypt(data.type, data.key)
 
-                print(f"\n[|] client data receievd from {address}: {data}")
+                if debug:
+                    print(f"\n[|] client data receievd from {address}: {data}")
                 threading.Thread(target=connect, args=(address, data, prompt, name), daemon=True).start()
 
 #sends packet over udp multicast group
@@ -222,7 +238,6 @@ def receive(sock, nameO, prompt):
                 if "\n" in current_input:
                     current_input = ""
 
-                sys.stdout.write(f"{nameO}: {data}\n")
                 sys.stdout.write(prompt + current_input)
                 sys.stdout.flush()
 
@@ -267,6 +282,12 @@ def send(prompt):
     while True:
         try:
             msg = str(input(prompt))
+            if msg == "giveINFO":
+                print(f"connections: {CONN_LIST}")
+                print(f"ips found: {IPs_Found}")
+                print(f"connections: {CONN_LIST}")
+                print(f"connections: {CONN_LIST}")
+                continue
             msg =  encrypt(msg, encryption_key)
         except KeyboardInterrupt:
             for sock in CONN_LIST:
@@ -291,6 +312,10 @@ def connect(address, data, prompt, local_name):
 
     name = data.name
     port = int(data.port)
+
+    if debug:
+        print(f"[|] connect thread ran: connecting to {name} at {address}")
+
     for active_sock in CONN_LIST:
         try:
             if active_sock.getpeername()[0] == address:
@@ -327,8 +352,9 @@ def connect(address, data, prompt, local_name):
             dedicated_sock.send(local_name.encode())
             
             CONN_LIST.append(dedicated_sock)
+            print(f"[+] connected to {nameO} on shifted port {routed_port}!")
             sys.stdout.write("\r\033[K")
-            sys.stdout.write(f"[+] connected to {name} on shifted port {routed_port}!")
+
             sys.stdout.write(prompt)
             sys.stdout.flush()
             readline.redisplay()
@@ -363,9 +389,12 @@ def server(prompt, name):
     while True:
         try:
             gateway_conn, address = server_sock.accept()
+            
+            if debug:
+                print("[|] person found")
 
             if address[0] == self_ip:
-                
+                print("[|] person is me \n")
                 gateway_conn.send(active_conn_code.encode())
                 gateway_conn.close()
                 return
@@ -505,7 +534,11 @@ def main():
     with open(config_path, "w") as f:
         json.dump(config_payload, f, indent=4)
 
-    name = input("display as: ") 
+    try:
+        name = input("display as: ") 
+    except KeyboardInterrupt:
+        close_sockets
+        sys.exit()
 
     encryption_key = get_encryption_key()
 
