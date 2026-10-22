@@ -97,8 +97,11 @@ def listen_udp(prompt, name):
             data = pickle.loads(data)
             if debug:
                 print("received UDP packet")
+
+            rec_key = encrypt(data.key, encryption_key) # new line
+            
             # print(data.key, encryption_key)
-            if data.key == encryption_key: 
+            if rec_key == encryption_key:  # was data.key
                 #print("received UDP packet matches key")
                 data.name = encrypt(data.name, data.key)
                 data.port = encrypt(str(data.port), data.key)
@@ -114,6 +117,7 @@ def encrypt_udp(prompt, name, packet):
     packet.name = encrypt(packet.name, packet.key)
     packet.port = encrypt(str(packet.port), packet.key)
     packet.type = encrypt(packet.type, packet.key)
+    packet.key = encrypt(packet.key, packet.key) # new line
 
     udp_sending_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     udp_sending_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
